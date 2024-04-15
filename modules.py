@@ -42,14 +42,16 @@ class SelfAttention(nn.Module):
 
     def forward(self, x):
 
-        # [Code Pointer 2]
+        # [Code Pointer 3]
 
         b, t, e = x.size()
         h = self.heads
         assert e == self.emb, f'Input embedding dim ({e}) should match layer embedding dim ({self.emb})'
 
+        # Inner dimension in each head 
         s = e // h
 
+        # -- We first compute the k/q/v's on the whole embedding vectors, and then split into the different heads.
         keys    = self.tokeys(x)
         queries = self.toqueries(x)
         values  = self.tovalues(x)
@@ -58,8 +60,6 @@ class SelfAttention(nn.Module):
         queries = queries.view(b, t, h, s)
         values  = values.view(b, t, h, s)
 
-
-        # -- We first compute the k/q/v's on the whole embedding vectors, and then split into the different heads.
         # Compute scaled dot-product self-attention
 
         # - fold heads into the batch dimension
@@ -70,9 +70,8 @@ class SelfAttention(nn.Module):
         # queries = queries / (e ** (1/4))
         # keys    = keys / (e ** (1/4))
 
-        # - Instead of dividing the dot products by sqrt(e), we scale the keys and values.
 
-        # - get dot product of queries and keys, and scale
+        # - get dot product of queries and keys, and scale. Attention matrix
         dot = torch.bmm(queries, keys.transpose(1, 2))
         dot = dot / (e ** (1/2)) # Scaling
 
@@ -82,7 +81,7 @@ class SelfAttention(nn.Module):
             mask_(dot, maskval=float('-inf'), mask_diagonal=False)
 
         dot = F.softmax(dot, dim=2)
-        # - dot now has row-wise self-attention probabilities
+        # dot now has row-wise self-attention probabilities
 
         # apply the self attention to the values
         out = torch.bmm(dot, values).view(b, h, t, s)
